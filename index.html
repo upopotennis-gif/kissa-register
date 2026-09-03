@@ -1,0 +1,3190 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="喫茶メニュー販売用レジアプリ（複数タブレット共有版）">
+    <title>喫茶レジ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=DotGothic16&display=swap">
+    <style>
+        /* ============================================================
+           リセット・CSS変数（純喫茶の温かい紙・木・真鍮の配色）
+        ============================================================ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            /* ニュートラル（温かいクリーム紙） */
+            --bg:               #ece0c9;
+            --surface:          #fbf6ea;
+            --surface-2:        #f2e5c9;
+            --ink:              #37281c;
+            --ink-muted:        #8a7660;
+            --border:           #d9c6a0;
+            --disabled:         #b9ab90;
+
+            /* アクセント（のれんの臙脂） */
+            --accent:           #8c3038;
+            --accent-dark:      #6d232a;
+            --accent-tint:      #f4dfdb;
+            --accent-border:    #d6a19f;
+
+            /* 真鍮（補充・注意系） */
+            --brass:            #af7e2b;
+            --brass-dark:       #8c6420;
+            --brass-tint:       #f6e8c9;
+            --brass-border:     #ddbd77;
+
+            /* セマンティック：完了・成功（抹茶） */
+            --success:          #4f7a4a;
+            --success-dark:     #3d6039;
+            --success-tint:     #e6efdd;
+            --success-border:   #b7d1a8;
+
+            /* セマンティック：警告・不足（煉瓦） */
+            --danger:           #ac4632;
+            --danger-tint:      #f6e1da;
+            --danger-border:    #e0b6a4;
+
+            /* レジ表示（LED風の伝票パネル） */
+            --ledger-bg:        #2a1d14;
+            --ledger-text:      #f0c877;
+            --ledger-text-dim:  #a98a5c;
+
+            --radius-sm:        6px;
+            --radius:           12px;
+
+            --font-display: 'Shippori Mincho', 'Hiragino Mincho ProN', serif;
+            --font-body:    'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+            --font-num:     'DotGothic16', 'Zen Kaku Gothic New', monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg:               #201509;
+                --surface:          #2b1e10;
+                --surface-2:        #362815;
+                --ink:              #ecdfc4;
+                --ink-muted:        #ab967a;
+                --border:           #4a3a20;
+                --disabled:         #6e6250;
+
+                --accent:           #e08b83;
+                --accent-dark:      #ce736a;
+                --accent-tint:      #402420;
+                --accent-border:    #6b3d38;
+
+                --brass:            #dcae57;
+                --brass-dark:       #c69235;
+                --brass-tint:       #3c2f16;
+                --brass-border:     #6b5527;
+
+                --success:          #93c087;
+                --success-dark:     #78a86c;
+                --success-tint:     #263420;
+                --success-border:   #47613b;
+
+                --danger:           #e08f77;
+                --danger-tint:      #3c261e;
+                --danger-border:    #6b4536;
+
+                --ledger-bg:        #140d08;
+                --ledger-text:      #f4cf85;
+                --ledger-text-dim:  #8c7450;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --bg:               #201509;
+            --surface:          #2b1e10;
+            --surface-2:        #362815;
+            --ink:              #ecdfc4;
+            --ink-muted:        #ab967a;
+            --border:           #4a3a20;
+            --disabled:         #6e6250;
+
+            --accent:           #e08b83;
+            --accent-dark:      #ce736a;
+            --accent-tint:      #402420;
+            --accent-border:    #6b3d38;
+
+            --brass:            #dcae57;
+            --brass-dark:       #c69235;
+            --brass-tint:       #3c2f16;
+            --brass-border:     #6b5527;
+
+            --success:          #93c087;
+            --success-dark:     #78a86c;
+            --success-tint:     #263420;
+            --success-border:   #47613b;
+
+            --danger:           #e08f77;
+            --danger-tint:      #3c261e;
+            --danger-border:    #6b4536;
+
+            --ledger-bg:        #140d08;
+            --ledger-text:      #f4cf85;
+            --ledger-text-dim:  #8c7450;
+        }
+
+        /* ============================================================
+           ベースレイアウト
+        ============================================================ */
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 0 14px 32px;
+        }
+
+        /* ============================================================
+           ヘッダー
+        ============================================================ */
+        .app-header {
+            text-align: center;
+            padding: 16px 0 12px;
+        }
+
+        .app-title {
+            font-family: var(--font-display);
+            font-size: 23px;
+            font-weight: 700;
+            color: var(--ink);
+            letter-spacing: 0.08em;
+            text-wrap: balance;
+        }
+
+        .app-subtitle {
+            font-size: 12px;
+            color: var(--ink-muted);
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+        }
+
+        /* ============================================================
+           起動時の読み込み・共有DB利用不可の案内
+        ============================================================ */
+        .app-loading {
+            text-align: center;
+            color: var(--ink-muted);
+            padding: 80px 20px;
+            font-size: 14px;
+        }
+
+        .db-banner p {
+            font-size: 13px;
+            color: var(--ink-muted);
+            line-height: 1.9;
+            margin-bottom: 8px;
+        }
+
+        .db-banner strong {
+            color: var(--ink);
+        }
+
+        /* ============================================================
+           タブ切り替え（役割ごとに端末を分けて使う想定）
+        ============================================================ */
+        .tab-bar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px 0;
+            margin-bottom: 10px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1 1 30%;
+            min-width: 96px;
+            min-height: 44px;
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ink-muted);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .tab-btn.active {
+            color: #fbf6ea;
+            background: var(--accent);
+            border-color: var(--accent-dark);
+        }
+
+        .tab-btn:active {
+            opacity: 0.85;
+        }
+
+        .tab-hint {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           テストモード（生徒への説明・練習用）
+        ============================================================ */
+        .test-mode-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            background: var(--brass-tint);
+            border: 1px solid var(--brass-border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .test-mode-bar input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            accent-color: var(--brass-dark);
+        }
+
+        .test-mode-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--brass-dark);
+            line-height: 1.5;
+        }
+
+        #panelTaking.test-mode-active {
+            outline: 3px solid var(--brass);
+            outline-offset: 4px;
+            border-radius: var(--radius);
+        }
+
+        .test-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--brass-dark);
+            background: var(--brass-tint);
+            border: 1px solid var(--brass-border);
+            border-radius: 999px;
+            padding: 1px 8px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        /* ============================================================
+           販売グリッド（商品選択＋注文内容／会計）共通レイアウト
+        ============================================================ */
+        .sell-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: start;
+            gap: 10px;
+        }
+
+        .sell-grid > .card {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 700px) {
+            .sell-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================================
+           横持ち（landscape）用コンパクト調整
+        ============================================================ */
+        @media (orientation: landscape) {
+            .container {
+                padding: 0 12px 20px;
+            }
+
+            .app-header {
+                padding: 6px 0 4px;
+            }
+
+            .app-title {
+                font-size: 19px;
+            }
+
+            .app-subtitle {
+                font-size: 10px;
+            }
+
+            .tab-bar {
+                padding: 6px 0;
+                margin-bottom: 8px;
+            }
+
+            .tab-btn {
+                min-height: 38px;
+                font-size: 12px;
+            }
+
+            .sell-grid {
+                gap: 8px;
+            }
+
+            .sell-grid > .card {
+                padding: 10px;
+            }
+
+            .card-title {
+                margin-bottom: 6px;
+                padding-bottom: 5px;
+            }
+
+            .products-grid,
+            .restock-grid {
+                gap: 6px;
+            }
+
+            .product-btn {
+                min-height: 64px;
+                padding: 8px 5px 8px 10px;
+            }
+
+            .product-btn-name {
+                font-size: 12px;
+            }
+
+            .product-btn-price {
+                font-size: 10px;
+            }
+
+            .product-btn-stock {
+                font-size: 10px;
+                margin-top: 1px;
+            }
+
+            .restock-desc {
+                font-size: 10px;
+                margin-bottom: 6px;
+            }
+
+            .restock-item {
+                padding: 6px 4px;
+            }
+
+            .restock-item-name {
+                font-size: 11px;
+                margin-bottom: 4px;
+            }
+
+            .restock-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 15px;
+            }
+
+            .restock-qty-display {
+                font-size: 14px;
+            }
+
+            .apply-btn {
+                height: 42px;
+                font-size: 15px;
+            }
+
+            .cart-item {
+                padding: 6px 0;
+            }
+
+            .total-row {
+                margin-top: 6px;
+                padding: 8px 12px;
+            }
+
+            .total-amount {
+                font-size: 26px;
+            }
+
+            .cash-row {
+                margin: 6px 0;
+            }
+
+            .cash-input {
+                height: 40px;
+                font-size: 20px;
+            }
+
+            .change-box {
+                padding: 6px 10px;
+                margin-bottom: 8px;
+            }
+
+            .change-value {
+                font-size: 19px;
+            }
+
+            .checkout-btn {
+                height: 46px;
+                font-size: 17px;
+            }
+
+            .calc-grid {
+                gap: 6px;
+                margin: 8px 0;
+            }
+
+            .calc-btn {
+                height: 36px;
+                font-size: 15px;
+            }
+
+            .calc-btn.calc-exact {
+                font-size: 11px;
+            }
+        }
+
+        /* ============================================================
+           カード（セクションの共通ラッパー）
+        ============================================================ */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(55, 40, 28, 0.08);
+        }
+
+        .card-title {
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink);
+            letter-spacing: 0.14em;
+            margin-bottom: 10px;
+            padding-bottom: 7px;
+            border-bottom: 2px solid var(--brass-border);
+        }
+
+        /* ============================================================
+           商品選択グリッド（メニュー札）
+        ============================================================ */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .product-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 2px;
+            padding: 10px 8px 10px 12px;
+            min-height: 84px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            color: var(--ink);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            transition: background-color 0.08s, border-color 0.08s;
+        }
+
+        .product-btn:active:not(:disabled) {
+            background: var(--accent-tint);
+        }
+
+        .product-btn:disabled {
+            background: var(--surface-2);
+            border-color: var(--border);
+            border-left-color: var(--disabled);
+            color: var(--disabled);
+            cursor: not-allowed;
+        }
+
+        .product-btn-name {
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            text-align: left;
+            line-height: 1.25;
+        }
+
+        .product-btn-price {
+            font-family: var(--font-body);
+            font-variant-numeric: tabular-nums;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--ink-muted);
+            margin-top: 1px;
+        }
+
+        .product-btn:disabled .product-btn-price {
+            color: var(--disabled);
+        }
+
+        .product-btn-stock {
+            font-variant-numeric: tabular-nums;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 3px;
+            padding: 1px 7px;
+            border-radius: 999px;
+            background: var(--surface-2);
+        }
+
+        .stock-ok   { color: var(--ink); }
+        .stock-low  { color: var(--brass-dark); background: var(--brass-tint); }
+        .stock-zero { color: var(--disabled); }
+
+        .grid-spacer {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* ============================================================
+           注文内容（カート＝伝票）
+        ============================================================ */
+        .cart-empty {
+            text-align: center;
+            color: var(--ink-muted);
+            padding: 18px 0 8px;
+            font-size: 13px;
+        }
+
+        .cart-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--border);
+            gap: 8px;
+        }
+
+        .cart-item-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .cart-item-name {
+            font-size: 13px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .cart-item-unit {
+            font-variant-numeric: tabular-nums;
+            font-size: 11px;
+            color: var(--ink-muted);
+        }
+
+        .cart-item-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .qty-btn {
+            width: 36px;
+            height: 36px;
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .qty-btn.minus {
+            background: var(--danger-tint);
+            border-color: var(--danger-border);
+            color: var(--danger);
+        }
+
+        .qty-btn.plus {
+            background: var(--success-tint);
+            border-color: var(--success-border);
+            color: var(--success);
+        }
+
+        .qty-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .qty-btn:active:not(:disabled) {
+            opacity: 0.65;
+        }
+
+        .cart-qty {
+            font-variant-numeric: tabular-nums;
+            font-size: 17px;
+            font-weight: 800;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .cart-subtotal {
+            font-variant-numeric: tabular-nums;
+            font-size: 14px;
+            font-weight: 700;
+            min-width: 58px;
+            text-align: right;
+        }
+
+        /* ============================================================
+           合計・お会計金額表示（レジのLED伝票）
+        ============================================================ */
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding: 10px 14px;
+            background: var(--ledger-bg);
+            border-radius: var(--radius-sm);
+        }
+
+        .total-label {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            color: var(--ledger-text-dim);
+        }
+
+        .total-amount-wrap {
+            display: flex;
+            align-items: baseline;
+            gap: 3px;
+        }
+
+        .total-amount {
+            font-family: var(--font-num);
+            font-variant-numeric: tabular-nums;
+            font-size: 30px;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            color: var(--ledger-text);
+        }
+
+        .total-yen {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--ledger-text-dim);
+        }
+
+        /* ============================================================
+           現金入力・電卓・お釣り
+        ============================================================ */
+        .cash-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .cash-label {
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .cash-input {
+            flex: 1;
+            height: 50px;
+            font-family: var(--font-num);
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--ink);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0 12px;
+            text-align: right;
+            background: var(--surface-2);
+            -moz-appearance: textfield;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .cash-input::-webkit-inner-spin-button,
+        .cash-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+        }
+
+        .cash-input:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+            background: var(--surface);
+        }
+
+        .cash-yen {
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin: 0 0 12px;
+        }
+
+        .calc-btn {
+            height: 44px;
+            font-family: var(--font-num);
+            font-size: 18px;
+            font-weight: 400;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            color: var(--ink);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .calc-btn:active {
+            background: var(--surface);
+        }
+
+        .calc-btn.calc-clear {
+            background: var(--danger-tint);
+            border-color: var(--danger-border);
+            color: var(--danger);
+        }
+
+        .calc-btn.calc-back {
+            background: var(--brass-tint);
+            border-color: var(--brass-border);
+            color: var(--brass-dark);
+        }
+
+        .calc-btn.calc-zero {
+            grid-column: span 2;
+        }
+
+        .calc-btn.calc-exact {
+            font-family: var(--font-body);
+            background: var(--success-tint);
+            border-color: var(--success-border);
+            color: var(--success-dark);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .change-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--success-tint);
+            border: 1px solid var(--success-border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            margin-bottom: 14px;
+        }
+
+        .change-box.insufficient {
+            background: var(--danger-tint);
+            border-color: var(--danger-border);
+        }
+
+        .change-box-label {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .change-value {
+            font-family: var(--font-num);
+            font-variant-numeric: tabular-nums;
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--success-dark);
+            letter-spacing: 0.02em;
+        }
+
+        .change-value.insufficient {
+            font-family: var(--font-body);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--danger);
+        }
+
+        /* ============================================================
+           確定・会計完了ボタン
+        ============================================================ */
+        .checkout-btn {
+            width: 100%;
+            height: 60px;
+            font-family: var(--font-display);
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--accent);
+            color: #fbf6ea;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: background-color 0.08s, transform 0.08s;
+        }
+
+        .checkout-btn:active:not(:disabled) {
+            background: var(--accent-dark);
+            transform: scale(0.98);
+        }
+
+        .checkout-btn:disabled {
+            background: var(--disabled);
+            color: var(--surface);
+            cursor: not-allowed;
+        }
+
+        .checkout-btn:focus-visible,
+        .save-btn:focus-visible,
+        .apply-btn:focus-visible,
+        .next-customer-btn:focus-visible,
+        .product-btn:focus-visible,
+        .qty-btn:focus-visible,
+        .restock-btn:focus-visible,
+        .calc-btn:focus-visible,
+        .cash-input:focus-visible,
+        .tab-btn:focus-visible,
+        .order-card:focus-visible,
+        .order-action-btn:focus-visible,
+        .back-btn:focus-visible,
+        .manage-delete-btn:focus-visible,
+        .manage-add-btn:focus-visible,
+        .stats-reset-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        /* ============================================================
+           整理番号発行カード（注文受付・確定後）
+        ============================================================ */
+        .order-issued-card {
+            background: var(--ledger-bg);
+            border-radius: var(--radius);
+            padding: 24px 20px;
+            text-align: center;
+        }
+
+        .order-issued-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: var(--ledger-text-dim);
+            margin-bottom: 6px;
+        }
+
+        .order-issued-number {
+            font-family: var(--font-num);
+            font-size: 56px;
+            color: var(--ledger-text);
+            line-height: 1;
+            margin-bottom: 12px;
+        }
+
+        .order-issued-items {
+            font-size: 14px;
+            color: var(--ledger-text);
+            margin-bottom: 6px;
+            line-height: 1.6;
+        }
+
+        .order-issued-total {
+            font-family: var(--font-num);
+            font-size: 22px;
+            color: var(--ledger-text);
+            margin-bottom: 16px;
+        }
+
+        .order-issued-hint {
+            font-size: 12px;
+            color: var(--ledger-text-dim);
+            margin-bottom: 18px;
+            line-height: 1.7;
+        }
+
+        .next-customer-btn {
+            width: 100%;
+            height: 50px;
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--accent);
+            color: #fbf6ea;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .next-customer-btn:active {
+            background: var(--accent-dark);
+        }
+
+        /* ============================================================
+           会計待ち・受け取り待ちの注文一覧
+        ============================================================ */
+        .order-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .order-card {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            font-family: var(--font-body);
+            color: var(--ink);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        button.order-card:active {
+            background: var(--accent-tint);
+        }
+
+        .order-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 6px;
+        }
+
+        .order-number-badge {
+            font-family: var(--font-num);
+            font-size: 20px;
+            color: var(--accent);
+        }
+
+        .order-time {
+            font-size: 12px;
+            color: var(--ink-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .order-items-text {
+            font-size: 13px;
+            color: var(--ink);
+            margin-bottom: 6px;
+            line-height: 1.5;
+        }
+
+        .order-total-tag {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            font-size: 14px;
+            text-align: right;
+        }
+
+        .order-action-btn {
+            width: 100%;
+            height: 42px;
+            margin-top: 4px;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.06em;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--success);
+            color: #fbf6ea;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .order-action-btn:active {
+            background: var(--success-dark);
+        }
+
+        .order-empty {
+            text-align: center;
+            color: var(--ink-muted);
+            padding: 24px 0;
+            font-size: 13px;
+        }
+
+        .back-btn {
+            display: inline-block;
+            background: transparent;
+            border: none;
+            color: var(--ink-muted);
+            font-size: 13px;
+            font-weight: 700;
+            padding: 4px 0;
+            margin-bottom: 10px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .back-btn:active {
+            color: var(--ink);
+        }
+
+        /* ============================================================
+           補充セクション（真鍮＝要対応の合図）
+        ============================================================ */
+        .card.restock-card {
+            background: var(--brass-tint);
+            border-color: var(--brass-border);
+        }
+
+        .card.restock-card .card-title {
+            border-bottom-color: var(--brass);
+        }
+
+        .restock-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .restock-item {
+            background: var(--surface);
+            border: 1px solid var(--brass-border);
+            border-radius: var(--radius-sm);
+            padding: 8px 6px;
+            text-align: center;
+        }
+
+        .restock-item-name {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .restock-current-stock {
+            display: block;
+            font-size: 10px;
+            font-weight: 500;
+            color: var(--ink-muted);
+            margin: 2px 0 6px;
+        }
+
+        .restock-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .restock-btn {
+            width: 34px;
+            height: 34px;
+            font-size: 17px;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface-2);
+            color: var(--ink);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .restock-btn:active {
+            background: var(--brass-tint);
+        }
+
+        .restock-qty-display {
+            font-variant-numeric: tabular-nums;
+            font-size: 15px;
+            font-weight: 800;
+            min-width: 26px;
+            text-align: center;
+        }
+
+        .apply-btn {
+            width: 100%;
+            height: 50px;
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--brass);
+            color: #2a1d0d;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: background-color 0.08s;
+        }
+
+        .apply-btn:active {
+            background: var(--brass-dark);
+        }
+
+        .restock-desc {
+            font-size: 11px;
+            color: var(--ink-muted);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           商品管理（商品名・価格の編集、追加・削除）
+        ============================================================ */
+        .manage-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .manage-row,
+        .manage-add-row {
+            display: grid;
+            grid-template-columns: 1fr 110px auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        @media (max-width: 480px) {
+            .manage-row,
+            .manage-add-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .manage-name-input {
+            height: 42px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            color: var(--ink);
+            font-family: var(--font-body);
+            font-size: 13px;
+            padding: 0 10px;
+        }
+
+        .manage-price-wrap {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 42px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            padding: 0 10px;
+        }
+
+        .manage-price-wrap .manage-price-input {
+            flex: 1;
+            min-width: 0;
+            height: auto;
+            border: none;
+            background: transparent;
+            padding: 0;
+            text-align: right;
+            font-family: var(--font-body);
+            font-size: 13px;
+            color: var(--ink);
+        }
+
+        .manage-price-wrap .manage-price-input:focus {
+            outline: none;
+        }
+
+        .manage-yen {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--ink-muted);
+        }
+
+        .manage-name-input:focus,
+        .manage-price-wrap:focus-within {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+
+        .manage-delete-btn {
+            height: 42px;
+            padding: 0 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--danger);
+            background: var(--danger-tint);
+            border: 1px solid var(--danger-border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .manage-delete-btn:active {
+            background: var(--danger-border);
+        }
+
+        .manage-add-row {
+            padding-top: 8px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .manage-add-btn {
+            height: 42px;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #fbf6ea;
+            background: var(--success);
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .manage-add-btn:active {
+            background: var(--success-dark);
+        }
+
+        .manage-empty {
+            text-align: center;
+            color: var(--ink-muted);
+            font-size: 12px;
+            padding: 10px 0;
+        }
+
+        /* ============================================================
+           エクスポート・保存セクション
+        ============================================================ */
+        .card.save-card {
+            background: var(--accent-tint);
+            border-color: var(--accent-border);
+        }
+
+        .card.save-card .card-title {
+            border-bottom-color: var(--accent-border);
+        }
+
+        .save-desc {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+
+        .save-btn {
+            width: 100%;
+            height: 50px;
+            font-family: var(--font-display);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--accent);
+            color: #fbf6ea;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: background-color 0.08s;
+        }
+
+        .save-btn:active {
+            background: var(--accent-dark);
+        }
+
+        /* ============================================================
+           注文履歴（元帳）
+        ============================================================ */
+        .log-count {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-bottom: 8px;
+        }
+
+        .log-scroll {
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 420px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+        }
+
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+            min-width: 520px;
+        }
+
+        .log-table th {
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: var(--surface-2);
+            padding: 8px 6px;
+            font-weight: 700;
+            text-align: center;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--brass-border);
+        }
+
+        .log-table td {
+            padding: 7px 6px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-table td:nth-child(3) {
+            text-align: left;
+        }
+
+        .log-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .log-table tbody tr:nth-child(even) td {
+            background: var(--surface-2);
+        }
+
+        .log-total-cell {
+            font-weight: 700;
+        }
+
+        .log-canceled td {
+            color: var(--disabled);
+            text-decoration: line-through;
+        }
+
+        .log-test td {
+            background: var(--brass-tint);
+        }
+
+        /* ============================================================
+           統計タブ（全タブレット共有・当日累計）
+        ============================================================ */
+        .stats-view-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .stats-view-btn {
+            flex: 1;
+            height: 38px;
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            color: var(--ink-muted);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .stats-view-btn.active {
+            background: var(--accent);
+            color: #fbf6ea;
+            border-color: var(--accent-dark);
+        }
+
+        .stats-empty {
+            text-align: center;
+            color: var(--ink-muted);
+            padding: 28px 12px;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .stat-hero {
+            background: var(--ledger-bg);
+            border-radius: var(--radius-sm);
+            padding: 18px 20px;
+            margin-bottom: 10px;
+        }
+
+        .stat-hero-label {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            color: var(--ledger-text-dim);
+            margin-bottom: 4px;
+        }
+
+        .stat-hero-value {
+            font-family: var(--font-num);
+            font-size: 38px;
+            color: var(--ledger-text);
+            letter-spacing: 0.02em;
+        }
+
+        .stat-tile-unit {
+            font-size: 15px;
+            font-weight: 700;
+            margin-left: 3px;
+            opacity: 0.75;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 700px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stat-tile {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-tile-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--ink-muted);
+            letter-spacing: 0.08em;
+        }
+
+        .stat-tile-value {
+            font-family: var(--font-num);
+            font-size: 24px;
+            color: var(--ink);
+        }
+
+        .stats-subtitle {
+            font-family: var(--font-display);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--ink);
+            margin: 18px 0 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .rank-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .rank-row {
+            display: grid;
+            grid-template-columns: 100px 1fr auto;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rank-name {
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rank-bar-track {
+            height: 20px;
+            background: var(--surface-2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .rank-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 0 10px 10px 0;
+        }
+
+        .rank-bar-fill.has-value {
+            min-width: 3px;
+        }
+
+        .rank-value {
+            font-variant-numeric: tabular-nums;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--ink);
+            white-space: nowrap;
+            text-align: right;
+        }
+
+        .rank-value-sub {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--ink-muted);
+            margin-left: 4px;
+        }
+
+        .stats-peak {
+            font-size: 12px;
+            color: var(--ink-muted);
+            margin-bottom: 10px;
+        }
+
+        .stats-peak strong {
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .hour-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .hour-col {
+            flex: 0 0 auto;
+            min-width: 54px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hour-col-value {
+            font-variant-numeric: tabular-nums;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--ink);
+            white-space: nowrap;
+        }
+
+        .hour-col-bar-track {
+            width: 28px;
+            height: 120px;
+            display: flex;
+            align-items: flex-end;
+            background: var(--surface-2);
+            border-radius: 4px;
+        }
+
+        .hour-col-bar {
+            width: 100%;
+            min-height: 3px;
+            background: var(--accent);
+            border-radius: 4px 4px 0 0;
+        }
+
+        .hour-col-bar.peak {
+            background: var(--accent-dark);
+        }
+
+        .hour-col-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--ink-muted);
+            white-space: nowrap;
+        }
+
+        .stats-reset-btn {
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+            background: transparent;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--ink-muted);
+            font-size: 11px;
+            padding: 8px 14px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .stats-reset-btn:active {
+            color: var(--danger);
+            border-color: var(--danger-border);
+        }
+
+        /* ============================================================
+           トースト通知（操作の完了フィードバック）
+        ============================================================ */
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: #fbf6ea;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.06em;
+            padding: 12px 24px;
+            border-radius: 999px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            max-width: 90vw;
+            text-align: center;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        @media (prefers-reduced-motion: no-preference) {
+            .toast {
+                transition: opacity 0.25s ease, transform 0.25s ease;
+                transform: translateX(-50%) translateY(8px);
+            }
+
+            .toast.show {
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- ヘッダー -->
+        <header class="app-header">
+            <h1 class="app-title">喫茶レジ</h1>
+            <p class="app-subtitle">文化祭 販売レジ（複数タブレット共有）</p>
+        </header>
+
+        <!-- 読み込み中 -->
+        <div class="app-loading" id="appLoading">読み込み中…</div>
+
+        <!-- 共有データベースに接続できない場合の案内 -->
+        <div class="card db-banner" id="dbUnavailable" hidden>
+            <div class="card-title">接続できませんでした</div>
+            <p>在庫・注文データを共有するためのサーバー（Firebase）に接続できませんでした。</p>
+            <p>インターネット接続を確認して、このページを開き直してください。改善しない場合は、ネットワークやFirebaseプロジェクトの設定をご確認ください。</p>
+        </div>
+
+        <!-- アプリ本体 -->
+        <div id="appMain" hidden>
+
+            <!-- タブ切り替え -->
+            <nav class="tab-bar" role="tablist" aria-label="画面切り替え">
+                <button type="button" class="tab-btn active" id="tabBtnTaking" data-tab="taking" role="tab" aria-selected="true" aria-controls="panelTaking">注文受付</button>
+                <button type="button" class="tab-btn" id="tabBtnCheckout" data-tab="checkout" role="tab" aria-selected="false" aria-controls="panelCheckout">会計</button>
+                <button type="button" class="tab-btn" id="tabBtnPickup" data-tab="pickup" role="tab" aria-selected="false" aria-controls="panelPickup">受け取り</button>
+                <button type="button" class="tab-btn" id="tabBtnRestock" data-tab="restock" role="tab" aria-selected="false" aria-controls="panelRestock">補充</button>
+                <button type="button" class="tab-btn" id="tabBtnStats" data-tab="stats" role="tab" aria-selected="false" aria-controls="panelStats">統計</button>
+                <button type="button" class="tab-btn" id="tabBtnLog" data-tab="log" role="tab" aria-selected="false" aria-controls="panelLog">ログ</button>
+            </nav>
+
+            <!-- 1. 注文受付（列に並んでいる間に使う端末） -->
+            <div class="tab-panel" id="panelTaking" data-tab-panel="taking" role="tabpanel" aria-labelledby="tabBtnTaking">
+                <p class="tab-hint">レジに並んでいる間に、ご注文の内容を伺い、整理番号をお渡しする画面です（この時点ではまだお会計しません）。</p>
+
+                <label class="test-mode-bar" id="testModeBar" for="testModeToggle">
+                    <input type="checkbox" id="testModeToggle">
+                    <span class="test-mode-label">テストモード（生徒への説明・練習用。在庫は減らず、統計にも数えません）</span>
+                </label>
+
+                <div id="takingDraftView">
+                    <div class="sell-grid">
+                        <section class="card" aria-label="商品選択">
+                            <div class="card-title">商品選択</div>
+                            <div class="products-grid" id="takingProductsGrid"></div>
+                        </section>
+
+                        <section class="card" aria-label="注文内容">
+                            <div class="card-title">注文内容</div>
+                            <div id="takingCartList">
+                                <div class="cart-empty" id="takingCartEmpty">商品を選択してください</div>
+                            </div>
+                            <div class="total-row">
+                                <span class="total-label">合計</span>
+                                <div class="total-amount-wrap">
+                                    <span class="total-amount" id="takingTotal">0</span>
+                                    <span class="total-yen">円</span>
+                                </div>
+                            </div>
+                            <button class="checkout-btn" id="confirmOrderBtn" disabled>注文を確定する</button>
+                        </section>
+                    </div>
+                </div>
+
+                <div class="order-issued-card" id="orderIssuedCard" hidden>
+                    <div class="order-issued-label">整理番号</div>
+                    <div class="order-issued-number" id="orderIssuedNumber">0</div>
+                    <div class="order-issued-items" id="orderIssuedItems"></div>
+                    <div class="order-issued-total" id="orderIssuedTotal"></div>
+                    <p class="order-issued-hint" id="orderIssuedHint">この番号を、店内に入るタイミングで会計係にお伝えください。</p>
+                    <button type="button" class="next-customer-btn" id="nextCustomerBtn">次のお客様へ</button>
+                </div>
+            </div>
+
+            <!-- 2. 会計（入店のタイミングで使う端末） -->
+            <div class="tab-panel" id="panelCheckout" data-tab-panel="checkout" role="tabpanel" aria-labelledby="tabBtnCheckout" hidden>
+                <p class="tab-hint">お客さんが店内に入るタイミングで、事前の注文を呼び出してお会計する画面です。</p>
+
+                <div id="checkoutListView">
+                    <section class="card" aria-label="会計待ちの注文">
+                        <div class="card-title">会計待ち</div>
+                        <div class="order-list" id="checkoutOrderList">
+                            <div class="order-empty">会計待ちの注文はありません</div>
+                        </div>
+                    </section>
+                </div>
+
+                <div id="checkoutDetailView" hidden>
+                    <section class="card" aria-label="会計">
+                        <button type="button" class="back-btn" id="checkoutBackBtn">← 一覧に戻る</button>
+                        <div class="card-title">会計</div>
+                        <div class="order-issued-label" style="color:var(--ink-muted)">整理番号</div>
+                        <div class="order-issued-number" id="checkoutOrderNumber" style="color:var(--accent)">0</div>
+                        <div class="order-issued-items" id="checkoutOrderItems" style="color:var(--ink)"></div>
+
+                        <div class="total-row">
+                            <span class="total-label">合計</span>
+                            <div class="total-amount-wrap">
+                                <span class="total-amount" id="checkoutTotal">0</span>
+                                <span class="total-yen">円</span>
+                            </div>
+                        </div>
+
+                        <div class="cash-row">
+                            <span class="cash-label">お預かり</span>
+                            <input
+                                type="number"
+                                id="cashInput"
+                                class="cash-input"
+                                min="0"
+                                step="1"
+                                placeholder="0"
+                                inputmode="numeric"
+                                aria-label="お預かり金額"
+                            >
+                            <span class="cash-yen">円</span>
+                        </div>
+
+                        <div class="calc-grid" id="calcGrid">
+                            <button type="button" class="calc-btn calc-clear" data-key="C">C</button>
+                            <button type="button" class="calc-btn" data-key="00">00</button>
+                            <button type="button" class="calc-btn calc-back" data-key="back" aria-label="1桁削除">⌫</button>
+                            <button type="button" class="calc-btn" data-key="7">7</button>
+                            <button type="button" class="calc-btn" data-key="8">8</button>
+                            <button type="button" class="calc-btn" data-key="9">9</button>
+                            <button type="button" class="calc-btn" data-key="4">4</button>
+                            <button type="button" class="calc-btn" data-key="5">5</button>
+                            <button type="button" class="calc-btn" data-key="6">6</button>
+                            <button type="button" class="calc-btn" data-key="1">1</button>
+                            <button type="button" class="calc-btn" data-key="2">2</button>
+                            <button type="button" class="calc-btn" data-key="3">3</button>
+                            <button type="button" class="calc-btn calc-zero" data-key="0">0</button>
+                            <button type="button" class="calc-btn calc-exact" data-key="exact">ちょうど</button>
+                        </div>
+
+                        <div class="change-box" id="changeBox">
+                            <span class="change-box-label">お釣り</span>
+                            <span class="change-value" id="changeValue">—</span>
+                        </div>
+
+                        <button class="checkout-btn" id="checkoutPayBtn" disabled>会計完了</button>
+                        <button type="button" class="stats-reset-btn" id="checkoutCancelBtn">この注文を取り消す（在庫を戻す）</button>
+                    </section>
+                </div>
+            </div>
+
+            <!-- 3. 受け取り（商品の受け渡し窓口で使う端末） -->
+            <div class="tab-panel" id="panelPickup" data-tab-panel="pickup" role="tabpanel" aria-labelledby="tabBtnPickup" hidden>
+                <p class="tab-hint">お会計が済んだ注文の一覧です。商品をお渡ししたら「お渡し済み」を押してください。</p>
+                <section class="card" aria-label="受け取り待ちの注文">
+                    <div class="card-title">受け取り待ち</div>
+                    <div class="order-list" id="pickupOrderList">
+                        <div class="order-empty">受け取り待ちの注文はありません</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 4. 商品管理・在庫補充 -->
+            <div class="tab-panel" id="panelRestock" data-tab-panel="restock" role="tabpanel" aria-labelledby="tabBtnRestock" hidden>
+                <section class="card" aria-label="商品管理">
+                    <div class="card-title">商品管理</div>
+                    <p class="tab-hint">商品名・価格の変更や、商品の追加・削除ができます。変更は全タブレットに反映されますが、過去の注文履歴・統計はそのままの内容で残ります。</p>
+                    <div class="manage-list" id="productManageList"></div>
+                    <div class="manage-add-row">
+                        <input type="text" id="newProductName" class="manage-name-input" placeholder="新しい商品名" aria-label="新しい商品名">
+                        <div class="manage-price-wrap">
+                            <span class="manage-yen">¥</span>
+                            <input type="number" id="newProductPrice" class="manage-price-input" placeholder="価格" min="0" step="10" aria-label="新しい商品の価格">
+                        </div>
+                        <button type="button" class="manage-add-btn" id="addProductBtn">＋ 追加</button>
+                    </div>
+                </section>
+
+                <section class="card restock-card" aria-label="在庫補充">
+                    <div class="card-title">在庫補充</div>
+                    <p class="restock-desc">破損・数え間違いの補正にはマイナスも使えます（在庫は0未満になりません）。ここでの変更は全タブレットに反映されます。</p>
+                    <div class="restock-grid" id="restockGrid"></div>
+                    <button class="apply-btn" id="applyRestockBtn">補充を反映</button>
+                </section>
+            </div>
+
+            <!-- 5. 統計 -->
+            <div class="tab-panel" id="panelStats" data-tab-panel="stats" role="tabpanel" aria-labelledby="tabBtnStats" hidden>
+                <section class="card" aria-label="統計">
+                    <div class="card-title">統計（文化祭 当日累計・全タブレット合算）</div>
+
+                    <div class="stats-view-toggle">
+                        <button type="button" class="stats-view-btn active" id="statsViewRealBtn">本番の統計</button>
+                        <button type="button" class="stats-view-btn" id="statsViewTestBtn">テストモードの統計</button>
+                    </div>
+
+                    <div class="stats-empty" id="statsEmpty">
+                        まだ会計データがありません。<br>
+                        会計が完了すると、ここに全タブレット合算の集計が表示されます。
+                    </div>
+
+                    <div id="statsBody" hidden>
+                        <div class="stat-hero">
+                            <div class="stat-hero-label">総売上</div>
+                            <div class="stat-hero-value" id="statHeroValue">0<span class="stat-tile-unit">円</span></div>
+                        </div>
+
+                        <div class="stat-grid" id="statsSummary"></div>
+
+                        <h3 class="stats-subtitle">商品別 販売数ランキング</h3>
+                        <div class="rank-list" id="statsRanking"></div>
+
+                        <h3 class="stats-subtitle">時間帯別 売上（1時間ごと）</h3>
+                        <p class="stats-peak" id="statsPeak"></p>
+                        <div class="hour-chart" id="statsHourly"></div>
+                    </div>
+
+                    <button type="button" class="stats-reset-btn" id="statsResetBtn">累積データをリセット（来年度の文化祭用など）</button>
+                </section>
+            </div>
+
+            <!-- 6. ログ（注文履歴・エクスポート） -->
+            <div class="tab-panel" id="panelLog" data-tab-panel="log" role="tabpanel" aria-labelledby="tabBtnLog" hidden>
+                <section class="card save-card" aria-label="注文履歴のエクスポート">
+                    <div class="card-title">注文履歴のエクスポート</div>
+                    <p class="save-desc">
+                        会計待ち・受け取り待ち・受け渡し済み・取消済みを含む、全ての注文履歴をCSVで保存します（データそのものは消えません）。
+                    </p>
+                    <button class="save-btn" id="exportLogBtn">💾 CSVを保存</button>
+                </section>
+
+                <section class="card" aria-label="注文履歴">
+                    <div class="card-title">注文履歴</div>
+                    <div class="log-count" id="logCount">0件</div>
+                    <div class="log-scroll">
+                        <table class="log-table">
+                            <thead>
+                                <tr>
+                                    <th>番号</th>
+                                    <th>時刻</th>
+                                    <th>内容</th>
+                                    <th>合計</th>
+                                    <th>状態</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module">
+        'use strict';
+
+        /* ============================================================
+           Firebase 初期化
+           （Claudeへのログインではなく、匿名認証でどの端末からでも
+             ログイン不要でアクセスできるようにしている）
+        ============================================================ */
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+        import {
+            getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
+            collection, addDoc, query, where, orderBy, limit, getDocs
+        } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: 'AIzaSyCzxuZbLIhAKYIWGI5Q7vMscumtzwdxF0U',
+            authDomain: 'kissa-register.firebaseapp.com',
+            projectId: 'kissa-register',
+            storageBucket: 'kissa-register.firebasestorage.app',
+            messagingSenderId: '39499958848',
+            appId: '1:39499958848:web:1a8ba8004dc4611c1cada5'
+        };
+        const firebaseApp = initializeApp(firebaseConfig);
+        const firebaseAuth = getAuth(firebaseApp);
+        const firestore    = getFirestore(firebaseApp);
+
+        /**
+         * 元々このアプリはClaudeアーティファクトの共有データベース機能
+         * （db.doc()/db.collection() のAPI）向けに書かれていた。
+         * ここではFirestoreを同じ形の呼び出し方でラップし、
+         * 以降のアプリ本体のコードは一切変更せずに使えるようにしている。
+         */
+        function makeDb() {
+            function wrapDocSnap(snap) {
+                return { id: snap.id, exists: snap.exists(), data: () => snap.data() };
+            }
+            function wrapQuerySnap(snap) {
+                return {
+                    empty: snap.empty,
+                    docs: snap.docs.map(d => ({ id: d.id, exists: true, data: () => d.data() }))
+                };
+            }
+            function makeDocRef(path) {
+                const ref = doc(firestore, path);
+                return {
+                    id: ref.id,
+                    async get() { return wrapDocSnap(await getDoc(ref)); },
+                    async set(data) { await setDoc(ref, data); },
+                    async update(data) { await updateDoc(ref, data); },
+                    async delete() { await deleteDoc(ref); },
+                    onSnapshot(next, errCb) {
+                        return onSnapshot(ref, snap => next(wrapDocSnap(snap)), errCb);
+                    }
+                };
+            }
+            function makeCollectionRef(path, constraints) {
+                constraints = constraints || [];
+                const collRef = collection(firestore, path);
+                function withQuery() {
+                    return constraints.length ? query(collRef, ...constraints) : collRef;
+                }
+                return {
+                    where(field, op, value) { return makeCollectionRef(path, constraints.concat([where(field, op, value)])); },
+                    orderBy(field, dir) { return makeCollectionRef(path, constraints.concat([orderBy(field, dir || 'asc')])); },
+                    limit(n) { return makeCollectionRef(path, constraints.concat([limit(n)])); },
+                    async get() { return wrapQuerySnap(await getDocs(withQuery())); },
+                    onSnapshot(next, errCb) {
+                        return onSnapshot(withQuery(), snap => next(wrapQuerySnap(snap)), errCb);
+                    },
+                    doc(id) { return makeDocRef(`${path}/${id}`); },
+                    async add(data) { const ref = await addDoc(collRef, data); return { id: ref.id }; }
+                };
+            }
+            return { doc: makeDocRef, collection: makeCollectionRef };
+        }
+
+        /* ============================================================
+           定数
+        ============================================================ */
+        /** 文化祭を初めて開いた時にだけ投入する初期メニュー（以降は商品管理タブで自由に編集） */
+        const DEFAULT_PRODUCTS = [
+            { name: 'ナポリタン',       price: 300 },
+            { name: 'プリン',           price: 100 },
+            { name: 'メロン',           price: 100 },
+            { name: 'りんご',           price: 100 },
+            { name: '緑茶',             price: 100 },
+            { name: 'ミルクティー',     price: 100 },
+            { name: 'コーヒー微糖',     price: 100 },
+            { name: 'コーヒーブラック', price: 100 }
+        ];
+
+        const STATUS_LABEL = {
+            pending:   '会計待ち',
+            paid:      '受け取り待ち',
+            completed: '受け渡し済み',
+            canceled:  '取消'
+        };
+
+        /* ============================================================
+           状態（在庫・注文はすべて共有データベース経由。ここはローカルの作業用の状態のみ）
+        ============================================================ */
+        let db = null;
+
+        /** 商品カタログのローカルキャッシュ（products コレクションの購読で更新。並び順はorderの昇順） */
+        let PRODUCTS = [];
+        let unsubProducts = null;
+
+        /** 共有在庫のローカルキャッシュ { productId: number }（state/inventory の購読で更新） */
+        let inventory = {};
+        let unsubInventory = null;
+
+        /** 注文受付タブの下書き（確定前・このタブレットだけのローカル状態） { productId: number } */
+        let takingDraft = {};
+
+        /** 会計・受け取りタブで購読中の注文一覧リスナー（タブ切り替えで張り替える） */
+        let unsubOrdersList = null;
+
+        /** 会計タブで現在開いている注文（一覧からタップして選択中のもの） */
+        let selectedOrder = null;
+
+        /** 会計タブの電卓の入力値（数字文字列） */
+        let calcValue = '';
+
+        /** 補充タブの入力中の増減 { productId: number } */
+        let restockPending = {};
+
+        /** ログタブで直近に取得した注文一覧（CSVエクスポート用にも使う） */
+        let lastLogOrders = [];
+
+        /**
+         * テストモード（生徒への説明・練習用）。
+         * ページを開き直すたびに必ずOFFに戻る（当日つけっぱなしで
+         * 本番の注文が紛れ込むのを防ぐため、あえて保存しない）。
+         */
+        let testMode = false;
+        /** テストモード中に発行する番号（このタブレット内だけのローカルな連番。共有カウンターは使わない） */
+        let testOrderCounter = 0;
+
+        /** 統計タブでどちらを表示しているか */
+        let statsViewMode = 'real'; // 'real' | 'test'
+
+        let currentTab = 'taking';
+        let toastTimer = null;
+
+        /* ============================================================
+           トースト通知
+        ============================================================ */
+        function showToast(message) {
+            const el = document.getElementById('toast');
+            el.textContent = message;
+            el.hidden = false;
+            requestAnimationFrame(() => el.classList.add('show'));
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                el.classList.remove('show');
+                setTimeout(() => { el.hidden = true; }, 300);
+            }, 1800);
+        }
+
+        /* ============================================================
+           表示ユーティリティ
+        ============================================================ */
+        /** 商品名は自由入力になったため、innerHTMLへ差し込む箇所では必ずこれを通す */
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        /**
+         * 注文の items は「確定した時点の商品名・価格」を保持した配列
+         * [{ productId, name, price, qty }, ...]。
+         * 後から商品名や価格を変えても、過去の注文の表示・集計は変わらない。
+         * 戻り値はエスケープしていない生のテキスト（textContentでの利用を想定）。
+         * innerHTMLに差し込む場合は呼び出し側で escapeHtml() を通すこと。
+         */
+        function itemsToText(items) {
+            if (!items || !items.length) return '（内容なし）';
+            return items.map(it => `${it.name}×${it.qty}`).join('、');
+        }
+
+        function formatClock(ts) {
+            if (!ts) return '';
+            const d = new Date(ts);
+            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+
+        function formatDateTime(ts) {
+            if (!ts) return '';
+            const d = new Date(ts);
+            return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+        }
+
+        /** 注文番号の表示（テスト注文は本番の番号と紛れないよう別の見た目にする） */
+        function formatOrderNumber(o) {
+            return o.isTest ? `テストT-${o.number}` : `${o.number}番`;
+        }
+
+        /* ============================================================
+           起動
+        ============================================================ */
+        function init() {
+            setupEventListeners();
+            renderTakingProducts();
+            renderTakingCart();
+            renderRestock();
+            renderProductManageList();
+            bootDb();
+        }
+
+        async function bootDb() {
+            try {
+                await signInAnonymously(firebaseAuth);
+            } catch (err) {
+                console.error('サインインに失敗しました', err);
+                showDbUnavailable();
+                return;
+            }
+            db = makeDb();
+
+            document.getElementById('appLoading').hidden = true;
+            document.getElementById('appMain').hidden = false;
+
+            try {
+                const invSnap = await db.doc('state/inventory').get();
+                if (!invSnap.exists) {
+                    await db.doc('state/inventory').set({});
+                }
+            } catch (err) {
+                console.warn('在庫の初期化に失敗しました', err);
+            }
+
+            unsubInventory = db.doc('state/inventory').onSnapshot(snap => {
+                const data = snap.data() || {};
+                inventory = data;
+                renderTakingProducts();
+                renderRestock();
+            }, err => {
+                console.warn('在庫の購読でエラーが発生しました', err);
+            });
+
+            try {
+                const productsSnap = await db.collection('products').get();
+                if (productsSnap.empty) {
+                    // 初回起動時だけ、初期メニューを投入する
+                    let order = 1;
+                    for (const dp of DEFAULT_PRODUCTS) {
+                        await db.collection('products').add({ name: dp.name, price: dp.price, order: order++ });
+                    }
+                }
+            } catch (err) {
+                console.warn('商品の初期化に失敗しました', err);
+            }
+
+            unsubProducts = db.collection('products')
+                .orderBy('order', 'asc')
+                .onSnapshot(snap => {
+                    PRODUCTS = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    renderTakingProducts();
+                    renderTakingCart();
+                    renderRestock();
+                    renderProductManageList();
+                }, err => {
+                    console.warn('商品の購読でエラーが発生しました', err);
+                });
+
+            switchTab(currentTab);
+        }
+
+        function showDbUnavailable() {
+            document.getElementById('appLoading').hidden = true;
+            document.getElementById('dbUnavailable').hidden = false;
+        }
+
+        /* ============================================================
+           タブ切り替え
+        ============================================================ */
+        function teardownOrdersListener() {
+            if (unsubOrdersList) {
+                unsubOrdersList();
+                unsubOrdersList = null;
+            }
+        }
+
+        function switchTab(name) {
+            currentTab = name;
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                const active = btn.dataset.tab === name;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.hidden = panel.dataset.tabPanel !== name;
+            });
+
+            if (!db) return;
+
+            if (name === 'checkout') {
+                closeCheckoutDetail();
+                subscribeCheckoutList();
+            } else if (name === 'pickup') {
+                subscribePickupList();
+            } else {
+                teardownOrdersListener();
+            }
+
+            if (name === 'stats') loadAndRenderStats();
+            if (name === 'log') loadAndRenderLog();
+        }
+
+        /* ============================================================
+           1. 注文受付
+        ============================================================ */
+        function renderTakingProducts() {
+            const grid = document.getElementById('takingProductsGrid');
+            grid.innerHTML = '';
+
+            if (PRODUCTS.length === 0) {
+                grid.innerHTML = '<div class="manage-empty">商品がまだ登録されていません（「補充」タブの商品管理から追加してください）</div>';
+                return;
+            }
+
+            PRODUCTS.forEach(p => {
+                const inv = inventory[p.id] || 0;
+                const draftQty = takingDraft[p.id] || 0;
+                // テストモード中は在庫を実際には触らないため、在庫切れでも選べるようにする
+                const isDisabled = testMode ? false : (inv === 0 || draftQty >= inv);
+
+                const btn = document.createElement('button');
+                btn.className = 'product-btn';
+                btn.dataset.id = p.id;
+                if (isDisabled) btn.disabled = true;
+
+                let stockClass = 'stock-ok';
+                if (inv === 0) stockClass = 'stock-zero';
+                else if (inv <= 3) stockClass = 'stock-low';
+
+                btn.innerHTML =
+                    `<span class="product-btn-name">${escapeHtml(p.name)}</span>` +
+                    `<span class="product-btn-price">¥${p.price}</span>` +
+                    `<span class="product-btn-stock ${stockClass}">在庫 ${inv}</span>`;
+
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderTakingCart() {
+            const list  = document.getElementById('takingCartList');
+            const empty = document.getElementById('takingCartEmpty');
+
+            list.querySelectorAll('.cart-item').forEach(el => el.remove());
+
+            let total    = 0;
+            let hasItems = false;
+
+            PRODUCTS.forEach(p => {
+                const qty = takingDraft[p.id] || 0;
+                if (qty <= 0) return;
+
+                hasItems = true;
+                const subtotal = p.price * qty;
+                total += subtotal;
+
+                const inv    = inventory[p.id] || 0;
+                const canAdd = testMode || qty < inv;
+
+                const item = document.createElement('div');
+                item.className = 'cart-item';
+                item.innerHTML =
+                    `<div class="cart-item-info">` +
+                        `<div class="cart-item-name">${escapeHtml(p.name)}</div>` +
+                        `<div class="cart-item-unit">¥${p.price}</div>` +
+                    `</div>` +
+                    `<div class="cart-item-controls">` +
+                        `<button class="qty-btn minus" data-id="${p.id}" aria-label="${escapeHtml(p.name)}を1個減らす">−</button>` +
+                        `<span class="cart-qty">${qty}</span>` +
+                        `<button class="qty-btn plus" data-id="${p.id}" ${canAdd ? '' : 'disabled'} aria-label="${escapeHtml(p.name)}を1個増やす">＋</button>` +
+                    `</div>` +
+                    `<div class="cart-subtotal">¥${subtotal}</div>`;
+
+                list.appendChild(item);
+            });
+
+            empty.style.display = hasItems ? 'none' : 'block';
+            document.getElementById('takingTotal').textContent = total;
+            document.getElementById('confirmOrderBtn').disabled = !(hasItems && total > 0);
+        }
+
+        function takingAddToCart(id) {
+            const inv = inventory[id] || 0;
+            const qty = takingDraft[id] || 0;
+            if (!testMode && qty >= inv) return;
+            takingDraft[id] = qty + 1;
+            renderTakingCart();
+            renderTakingProducts();
+        }
+
+        function takingRemoveFromCart(id) {
+            const qty = takingDraft[id] || 0;
+            if (qty <= 0) return;
+            takingDraft[id] = qty - 1;
+            renderTakingCart();
+            renderTakingProducts();
+        }
+
+        async function handleConfirmOrder() {
+            if (!db) return;
+            // items は「確定した時点」の商品名・価格をそのまま埋め込む
+            // （後で商品名や価格を変えても、この注文の内容・金額は変わらない）
+            const items = [];
+            let total = 0;
+            PRODUCTS.forEach(p => {
+                const qty = takingDraft[p.id] || 0;
+                if (qty > 0) {
+                    items.push({ productId: p.id, name: p.name, price: p.price, qty });
+                    total += p.price * qty;
+                }
+            });
+            if (items.length === 0) return;
+
+            const btn = document.getElementById('confirmOrderBtn');
+            btn.disabled = true;
+            const isTest = testMode;
+
+            try {
+                let nextNumber;
+
+                if (isTest) {
+                    // テストモード：在庫も共有カウンターも触らず、この端末だけの連番を使う
+                    nextNumber = ++testOrderCounter;
+                } else {
+                    // 1. 在庫を仮引当（この時点で在庫を減らす）
+                    const invUpdates = {};
+                    items.forEach(it => {
+                        invUpdates[it.productId] = Math.max(0, (inventory[it.productId] || 0) - it.qty);
+                    });
+                    await db.doc('state/inventory').update(invUpdates);
+
+                    // 2. 整理番号を発行
+                    const counterRef  = db.doc('state/counter');
+                    const counterSnap = await counterRef.get();
+                    nextNumber = counterSnap.exists ? (counterSnap.data().next || 1) : 1;
+                    await counterRef.set({ next: nextNumber + 1 });
+                }
+
+                // 3. 注文を作成
+                await db.collection('orders').add({
+                    number:       nextNumber,
+                    items:        items,
+                    total:        total,
+                    status:       'pending',
+                    isTest:       isTest,
+                    createdAt:    Date.now(),
+                    paidAt:       null,
+                    completedAt:  null,
+                    canceledAt:   null,
+                    cashReceived: null,
+                    changeGiven:  null
+                });
+
+                showOrderIssued({ number: nextNumber, isTest }, items, total);
+                PRODUCTS.forEach(p => { takingDraft[p.id] = 0; });
+                renderTakingCart();
+                renderTakingProducts();
+            } catch (err) {
+                console.error(err);
+                alert('注文の登録に失敗しました。通信状況を確認してもう一度お試しください。');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function showOrderIssued(order, items, total) {
+            document.getElementById('takingDraftView').hidden = true;
+            document.getElementById('orderIssuedCard').hidden = false;
+            document.getElementById('orderIssuedNumber').textContent = formatOrderNumber(order);
+            document.getElementById('orderIssuedItems').textContent = itemsToText(items);
+            document.getElementById('orderIssuedTotal').textContent = `¥${total.toLocaleString('ja-JP')}`;
+            document.getElementById('orderIssuedHint').textContent = order.isTest
+                ? 'これはテスト注文です。統計・在庫には反映されません。'
+                : 'この番号を、店内に入るタイミングで会計係にお伝えください。';
+        }
+
+        function handleNextCustomer() {
+            document.getElementById('orderIssuedCard').hidden = true;
+            document.getElementById('takingDraftView').hidden = false;
+        }
+
+        /* ============================================================
+           2. 会計
+        ============================================================ */
+        let lastPendingDocsById = {};
+
+        function subscribeCheckoutList() {
+            teardownOrdersListener();
+            if (!db) return;
+            // status のみで絞り込み、並び替えはクライアント側で行う
+            // （status＋createdAtの複合インデックス作成が不要になるようにするため）
+            unsubOrdersList = db.collection('orders')
+                .where('status', '==', 'pending')
+                .onSnapshot(snap => {
+                    lastPendingDocsById = {};
+                    snap.docs.forEach(d => { lastPendingDocsById[d.id] = d.data(); });
+                    renderCheckoutList(snap);
+                }, err => console.warn('会計待ち一覧の購読でエラーが発生しました', err));
+        }
+
+        function renderCheckoutList(snap) {
+            const list = document.getElementById('checkoutOrderList');
+            if (snap.empty) {
+                list.innerHTML = '<div class="order-empty">会計待ちの注文はありません</div>';
+                return;
+            }
+            const sortedDocs = [...snap.docs].sort((a, b) => (a.data().createdAt || 0) - (b.data().createdAt || 0));
+            list.innerHTML = sortedDocs.map(doc => {
+                const o = doc.data();
+                return `
+                    <button type="button" class="order-card" data-id="${doc.id}">
+                        <div class="order-card-head">
+                            <span class="order-number-badge">${formatOrderNumber(o)}</span>
+                            <span class="order-time">${formatClock(o.createdAt)}〜</span>
+                        </div>
+                        <div class="order-items-text">${escapeHtml(itemsToText(o.items))}</div>
+                        <div class="order-total-tag">¥${(o.total || 0).toLocaleString('ja-JP')}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function openCheckoutDetail(id, data) {
+            selectedOrder = { id, ...data };
+            document.getElementById('checkoutListView').hidden = true;
+            document.getElementById('checkoutDetailView').hidden = false;
+            document.getElementById('checkoutOrderNumber').textContent = formatOrderNumber(data);
+            document.getElementById('checkoutOrderItems').textContent = itemsToText(data.items);
+            document.getElementById('checkoutTotal').textContent = data.total;
+            document.getElementById('cashInput').value = '';
+            calcValue = '';
+            updateCheckoutChangeDisplay();
+        }
+
+        function closeCheckoutDetail() {
+            selectedOrder = null;
+            document.getElementById('checkoutDetailView').hidden = true;
+            document.getElementById('checkoutListView').hidden = false;
+        }
+
+        function updateCheckoutChangeDisplay() {
+            const total = selectedOrder ? selectedOrder.total : 0;
+            const cash  = parseInt(document.getElementById('cashInput').value, 10) || 0;
+            const box   = document.getElementById('changeBox');
+            const val   = document.getElementById('changeValue');
+
+            if (cash <= 0) {
+                val.textContent = '—';
+                val.className   = 'change-value';
+                box.className   = 'change-box';
+            } else if (cash < total) {
+                val.textContent = `${total - cash}円不足`;
+                val.className   = 'change-value insufficient';
+                box.className   = 'change-box insufficient';
+            } else {
+                val.textContent = `${cash - total}円`;
+                val.className   = 'change-value';
+                box.className   = 'change-box';
+            }
+            document.getElementById('checkoutPayBtn').disabled = !(selectedOrder && total > 0 && cash >= total);
+        }
+
+        function handleCalcKey(key) {
+            if (key === 'C') {
+                calcValue = '';
+            } else if (key === 'back') {
+                calcValue = calcValue.slice(0, -1);
+            } else if (key === 'exact') {
+                calcValue = String(selectedOrder ? selectedOrder.total : 0);
+            } else {
+                calcValue += key;
+            }
+            const n = parseInt(calcValue, 10);
+            calcValue = isNaN(n) ? '' : String(Math.min(n, 9999999));
+
+            const input = document.getElementById('cashInput');
+            input.value = calcValue;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        async function handleCheckoutPay() {
+            if (!selectedOrder || !db) return;
+            const cash = parseInt(document.getElementById('cashInput').value, 10) || 0;
+            if (cash < selectedOrder.total) return;
+            const change = cash - selectedOrder.total;
+            const orderLabel = formatOrderNumber(selectedOrder);
+
+            document.getElementById('checkoutPayBtn').disabled = true;
+            try {
+                await db.collection('orders').doc(selectedOrder.id).update({
+                    status:       'paid',
+                    paidAt:       Date.now(),
+                    cashReceived: cash,
+                    changeGiven:  change
+                });
+                showToast(`${orderLabel} 会計完了しました`);
+                closeCheckoutDetail();
+            } catch (err) {
+                console.error(err);
+                alert('会計の登録に失敗しました。通信状況を確認してもう一度お試しください。');
+                document.getElementById('checkoutPayBtn').disabled = false;
+            }
+        }
+
+        async function handleCheckoutCancelOrder() {
+            if (!selectedOrder || !db) return;
+            const orderLabel = formatOrderNumber(selectedOrder);
+            const ok = confirm(`${orderLabel}の注文を取り消しますか？${selectedOrder.isTest ? '' : '\n在庫は元に戻ります。'}`);
+            if (!ok) return;
+
+            try {
+                if (!selectedOrder.isTest) {
+                    const invUpdates = {};
+                    (selectedOrder.items || []).forEach(it => {
+                        invUpdates[it.productId] = (inventory[it.productId] || 0) + it.qty;
+                    });
+                    await db.doc('state/inventory').update(invUpdates);
+                }
+                await db.collection('orders').doc(selectedOrder.id).update({
+                    status:     'canceled',
+                    canceledAt: Date.now()
+                });
+                showToast(`${orderLabel}の注文を取り消しました`);
+                closeCheckoutDetail();
+            } catch (err) {
+                console.error(err);
+                alert('取消に失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        /* ============================================================
+           3. 受け取り
+        ============================================================ */
+        function subscribePickupList() {
+            teardownOrdersListener();
+            if (!db) return;
+            unsubOrdersList = db.collection('orders')
+                .where('status', '==', 'paid')
+                .onSnapshot(snap => renderPickupList(snap), err => console.warn('受け取り待ち一覧の購読でエラーが発生しました', err));
+        }
+
+        function renderPickupList(snap) {
+            const list = document.getElementById('pickupOrderList');
+            if (snap.empty) {
+                list.innerHTML = '<div class="order-empty">受け取り待ちの注文はありません</div>';
+                return;
+            }
+            const sortedDocs = [...snap.docs].sort((a, b) => (a.data().createdAt || 0) - (b.data().createdAt || 0));
+            list.innerHTML = sortedDocs.map(doc => {
+                const o = doc.data();
+                return `
+                    <div class="order-card" style="cursor:default;">
+                        <div class="order-card-head">
+                            <span class="order-number-badge">${formatOrderNumber(o)}</span>
+                            <span class="order-time">${formatClock(o.createdAt)}〜</span>
+                        </div>
+                        <div class="order-items-text">${escapeHtml(itemsToText(o.items))}</div>
+                        <button type="button" class="order-action-btn" data-id="${doc.id}" data-label="${escapeHtml(formatOrderNumber(o))}">お渡し済み</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function handlePickupComplete(id, label) {
+            if (!db) return;
+            try {
+                await db.collection('orders').doc(id).update({ status: 'completed', completedAt: Date.now() });
+                showToast(`${label} お渡し完了`);
+            } catch (err) {
+                console.error(err);
+                alert('更新に失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        /* ============================================================
+           4. 在庫補充
+        ============================================================ */
+        function renderRestock() {
+            const grid = document.getElementById('restockGrid');
+            grid.innerHTML = '';
+
+            if (PRODUCTS.length === 0) {
+                grid.innerHTML = '<div class="manage-empty">商品がまだ登録されていません</div>';
+                return;
+            }
+
+            PRODUCTS.forEach(p => {
+                const qty = restockPending[p.id] || 0;
+                const item = document.createElement('div');
+                item.className = 'restock-item';
+                item.innerHTML =
+                    `<div class="restock-item-name">${escapeHtml(p.name)}</div>` +
+                    `<span class="restock-current-stock">在庫 ${inventory[p.id] || 0}</span>` +
+                    `<div class="restock-controls">` +
+                        `<button class="restock-btn" data-id="${p.id}" data-action="minus" aria-label="${escapeHtml(p.name)}補充数を減らす">−</button>` +
+                        `<span class="restock-qty-display" id="rpq-${p.id}">${qty}</span>` +
+                        `<button class="restock-btn" data-id="${p.id}" data-action="plus" aria-label="${escapeHtml(p.name)}補充数を増やす">＋</button>` +
+                    `</div>`;
+                grid.appendChild(item);
+            });
+        }
+
+        async function handleApplyRestock() {
+            if (!db) return;
+            const updates = {};
+            let any = false;
+            PRODUCTS.forEach(p => {
+                const delta = restockPending[p.id] || 0;
+                if (delta !== 0) {
+                    updates[p.id] = Math.max(0, (inventory[p.id] || 0) + delta);
+                    any = true;
+                }
+            });
+            if (!any) return;
+
+            try {
+                await db.doc('state/inventory').update(updates);
+                PRODUCTS.forEach(p => { restockPending[p.id] = 0; });
+                renderRestock();
+                showToast('在庫を補充しました');
+            } catch (err) {
+                console.error(err);
+                alert('補充の反映に失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        /* ============================================================
+           商品管理（追加・編集・削除）
+        ============================================================ */
+        function renderProductManageList() {
+            const container = document.getElementById('productManageList');
+            if (!container) return;
+
+            // 入力欄を編集中（フォーカス中）は再描画で入力内容を消さないようにする。
+            // フォーカスが外れたタイミングで改めて描画し直す（下のfocusoutリスナー）。
+            if (container.contains(document.activeElement)) return;
+
+            if (PRODUCTS.length === 0) {
+                container.innerHTML = '<div class="manage-empty">商品がまだ登録されていません。下のフォームから追加してください。</div>';
+                return;
+            }
+
+            container.innerHTML = PRODUCTS.map(p => `
+                <div class="manage-row" data-id="${p.id}">
+                    <input type="text" class="manage-name-input" value="${escapeHtml(p.name)}" aria-label="商品名">
+                    <div class="manage-price-wrap">
+                        <span class="manage-yen">¥</span>
+                        <input type="number" class="manage-price-input" value="${p.price}" min="0" step="10" aria-label="価格">
+                    </div>
+                    <button type="button" class="manage-delete-btn" data-id="${p.id}" data-name="${escapeHtml(p.name)}">削除</button>
+                </div>
+            `).join('');
+        }
+
+        async function handleEditProductName(id, value) {
+            if (!db) return;
+            const name = value.trim();
+            if (!name) {
+                alert('商品名は空にできません。');
+                renderProductManageList();
+                return;
+            }
+            try {
+                await db.collection('products').doc(id).update({ name });
+            } catch (err) {
+                console.error(err);
+                alert('商品名の更新に失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        async function handleEditProductPrice(id, value) {
+            if (!db) return;
+            const price = parseInt(value, 10);
+            if (isNaN(price) || price < 0) {
+                alert('価格は0以上の数字で入力してください。');
+                renderProductManageList();
+                return;
+            }
+            try {
+                await db.collection('products').doc(id).update({ price });
+            } catch (err) {
+                console.error(err);
+                alert('価格の更新に失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        async function handleDeleteProduct(id, name) {
+            if (!db) return;
+            const ok = confirm(`「${name}」を削除しますか？\n過去の注文履歴・統計の内容は変わりません。`);
+            if (!ok) return;
+
+            try {
+                await db.collection('products').doc(id).delete();
+
+                const invSnap = await db.doc('state/inventory').get();
+                if (invSnap.exists) {
+                    const data = invSnap.data() || {};
+                    if (id in data) {
+                        delete data[id];
+                        await db.doc('state/inventory').set(data);
+                    }
+                }
+                showToast(`「${name}」を削除しました`);
+            } catch (err) {
+                console.error(err);
+                alert('削除に失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        async function handleAddProduct() {
+            if (!db) return;
+            const nameInput  = document.getElementById('newProductName');
+            const priceInput = document.getElementById('newProductPrice');
+            const name  = nameInput.value.trim();
+            const price = parseInt(priceInput.value, 10);
+
+            if (!name || isNaN(price) || price < 0) {
+                alert('商品名と、価格（0以上の数字）を入力してください。');
+                return;
+            }
+
+            const addBtn = document.getElementById('addProductBtn');
+            addBtn.disabled = true;
+            try {
+                const maxOrder = PRODUCTS.reduce((m, p) => Math.max(m, p.order || 0), 0);
+                const ref = await db.collection('products').add({ name, price, order: maxOrder + 1 });
+                await db.doc('state/inventory').update({ [ref.id]: 0 });
+                nameInput.value  = '';
+                priceInput.value = '';
+                showToast(`「${name}」を追加しました`);
+            } catch (err) {
+                console.error(err);
+                alert('追加に失敗しました。通信状況を確認してもう一度お試しください。');
+            } finally {
+                addBtn.disabled = false;
+            }
+        }
+
+        /* ============================================================
+           5. 統計
+        ============================================================ */
+        function computeStats(orders) {
+            const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+            const transactionCount = orders.length;
+
+            // 商品ID単位で集計（価格・商品名はその注文当時のスナップショットを使う＝後から変更しても過去の金額は変わらない）
+            const productAgg = {}; // id -> { name, qty, revenue }
+            orders.forEach(o => {
+                (o.items || []).forEach(it => {
+                    if (!productAgg[it.productId]) productAgg[it.productId] = { name: it.name, qty: 0, revenue: 0 };
+                    productAgg[it.productId].qty     += it.qty;
+                    productAgg[it.productId].revenue  += it.price * it.qty;
+                    productAgg[it.productId].name = it.name; // 表示名はいちばん新しい注文時点のものを優先
+                });
+            });
+
+            // 今も存在する商品を並び順どおりに、削除済みの商品はその後ろに追加する
+            const remainingIds = new Set(Object.keys(productAgg));
+            const perProduct = PRODUCTS.map(p => {
+                const agg = productAgg[p.id];
+                remainingIds.delete(String(p.id));
+                return { id: p.id, name: p.name, qty: agg ? agg.qty : 0, revenue: agg ? agg.revenue : 0, archived: false };
+            });
+            remainingIds.forEach(id => {
+                const agg = productAgg[id];
+                perProduct.push({ id, name: agg.name, qty: agg.qty, revenue: agg.revenue, archived: true });
+            });
+
+            const totalItems = perProduct.reduce((sum, r) => sum + r.qty, 0);
+            const avgPerTransaction = transactionCount > 0 ? Math.round(totalRevenue / transactionCount) : 0;
+
+            const hourlyMap = {};
+            orders.forEach(o => {
+                const ts = o.paidAt || o.createdAt;
+                if (!ts) return;
+                const h = new Date(ts).getHours();
+                if (!hourlyMap[h]) hourlyMap[h] = { revenue: 0, count: 0 };
+                hourlyMap[h].revenue += (o.total || 0);
+                hourlyMap[h].count += 1;
+            });
+            const hourly = Object.keys(hourlyMap)
+                .map(Number)
+                .sort((a, b) => a - b)
+                .map(h => ({ hour: h, revenue: hourlyMap[h].revenue, count: hourlyMap[h].count }));
+
+            return { totalRevenue, totalItems, transactionCount, avgPerTransaction, perProduct, hourly };
+        }
+
+        /** 直近に取得した「会計済み・受け渡し済み」注文（本番／テスト両方を含む）。表示切り替えの再取得を省くためのキャッシュ */
+        let lastStatsOrders = [];
+
+        async function loadAndRenderStats() {
+            if (!db) return;
+            let snap;
+            try {
+                snap = await db.collection('orders').where('status', 'in', ['paid', 'completed']).get();
+            } catch (err) {
+                console.warn('統計の取得に失敗しました', err);
+                return;
+            }
+            lastStatsOrders = snap.docs.map(d => d.data());
+            renderStatsView();
+        }
+
+        function renderStatsView() {
+            document.getElementById('statsViewRealBtn').classList.toggle('active', statsViewMode === 'real');
+            document.getElementById('statsViewTestBtn').classList.toggle('active', statsViewMode === 'test');
+
+            const emptyEl = document.getElementById('statsEmpty');
+            const bodyEl  = document.getElementById('statsBody');
+            const orders  = lastStatsOrders.filter(o => statsViewMode === 'test' ? !!o.isTest : !o.isTest);
+
+            if (orders.length === 0) {
+                emptyEl.hidden = false;
+                emptyEl.innerHTML = statsViewMode === 'test'
+                    ? 'まだテストモードでの会計がありません。<br>「注文受付」タブでテストモードをONにして試してみてください。'
+                    : 'まだ会計データがありません。<br>会計が完了すると、ここに全タブレット合算の集計が表示されます。';
+                bodyEl.hidden  = true;
+                return;
+            }
+            emptyEl.hidden = true;
+            bodyEl.hidden  = false;
+
+            const stats = computeStats(orders);
+
+            document.getElementById('statHeroValue').innerHTML =
+                `${stats.totalRevenue.toLocaleString('ja-JP')}<span class="stat-tile-unit">円</span>`;
+
+            document.getElementById('statsSummary').innerHTML = `
+                <div class="stat-tile">
+                    <div class="stat-tile-label">販売点数</div>
+                    <div class="stat-tile-value">${stats.totalItems.toLocaleString('ja-JP')}<span class="stat-tile-unit">点</span></div>
+                </div>
+                <div class="stat-tile">
+                    <div class="stat-tile-label">会計件数</div>
+                    <div class="stat-tile-value">${stats.transactionCount.toLocaleString('ja-JP')}<span class="stat-tile-unit">件</span></div>
+                </div>
+                <div class="stat-tile">
+                    <div class="stat-tile-label">客単価</div>
+                    <div class="stat-tile-value">${stats.avgPerTransaction.toLocaleString('ja-JP')}<span class="stat-tile-unit">円</span></div>
+                </div>
+            `;
+
+            const maxQty = Math.max(1, ...stats.perProduct.map(r => r.qty));
+            const ranked = [...stats.perProduct].sort((a, b) => b.qty - a.qty);
+            document.getElementById('statsRanking').innerHTML = ranked.map(r => `
+                <div class="rank-row">
+                    <div class="rank-name">${escapeHtml(r.name)}${r.archived ? '（削除済み）' : ''}</div>
+                    <div class="rank-bar-track"><div class="rank-bar-fill${r.qty > 0 ? ' has-value' : ''}" style="width:${r.qty > 0 ? Math.max(4, (r.qty / maxQty) * 100) : 0}%"></div></div>
+                    <div class="rank-value">${r.qty.toLocaleString('ja-JP')}点<span class="rank-value-sub">¥${r.revenue.toLocaleString('ja-JP')}</span></div>
+                </div>
+            `).join('');
+
+            const peakEl   = document.getElementById('statsPeak');
+            const hourlyEl = document.getElementById('statsHourly');
+            if (stats.hourly.length === 0) {
+                peakEl.textContent = '時間帯データがありません。';
+                hourlyEl.innerHTML = '';
+            } else {
+                const peak = stats.hourly.reduce((a, b) => (b.revenue > a.revenue ? b : a));
+                peakEl.innerHTML = `いちばん売れた時間帯：<strong>${peak.hour}時台</strong>（¥${peak.revenue.toLocaleString('ja-JP')} ・ ${peak.count}件）`;
+
+                const maxRevenue = Math.max(1, ...stats.hourly.map(h => h.revenue));
+                hourlyEl.innerHTML = stats.hourly.map(h => `
+                    <div class="hour-col" title="${h.hour}時台：¥${h.revenue.toLocaleString('ja-JP')}（${h.count}件）">
+                        <div class="hour-col-value">¥${h.revenue.toLocaleString('ja-JP')}</div>
+                        <div class="hour-col-bar-track">
+                            <div class="hour-col-bar${h.hour === peak.hour ? ' peak' : ''}" style="height:${Math.max(4, (h.revenue / maxRevenue) * 100)}%"></div>
+                        </div>
+                        <div class="hour-col-label">${h.hour}時</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function handleStatsReset() {
+            if (!db) return;
+            const ok = confirm(
+                '在庫・整理番号・すべての注文履歴を、全タブレット分まとめて消去します。\n' +
+                'これは元に戻せません。文化祭が完全に終わった時や、来年度用に最初からやり直したい時だけ実行してください。\n\n' +
+                '本当にリセットしますか？'
+            );
+            if (!ok) return;
+
+            try {
+                const zero = {};
+                PRODUCTS.forEach(p => { zero[p.id] = 0; });
+                await db.doc('state/inventory').set(zero);
+                await db.doc('state/counter').set({ next: 1 });
+
+                const snap = await db.collection('orders').get();
+                await Promise.all(snap.docs.map(d => db.collection('orders').doc(d.id).delete()));
+
+                testOrderCounter = 0;
+                showToast('データをリセットしました');
+                loadAndRenderStats();
+                if (currentTab === 'log') loadAndRenderLog();
+            } catch (err) {
+                console.error(err);
+                alert('リセットに失敗しました。通信状況を確認してもう一度お試しください。');
+            }
+        }
+
+        /* ============================================================
+           6. ログ（注文履歴・エクスポート）
+        ============================================================ */
+        async function loadAndRenderLog() {
+            if (!db) return;
+            let snap;
+            try {
+                snap = await db.collection('orders').orderBy('createdAt', 'desc').limit(500).get();
+            } catch (err) {
+                console.warn('注文履歴の取得に失敗しました', err);
+                return;
+            }
+            lastLogOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderLogTable();
+        }
+
+        function renderLogTable() {
+            document.getElementById('logCount').textContent = `${lastLogOrders.length}件`;
+            document.getElementById('logBody').innerHTML = lastLogOrders.map(o => `
+                <tr class="${o.status === 'canceled' ? 'log-canceled' : ''} ${o.isTest ? 'log-test' : ''}">
+                    <td>${formatOrderNumber(o)}</td>
+                    <td>${formatDateTime(o.createdAt)}</td>
+                    <td>${escapeHtml(itemsToText(o.items))}</td>
+                    <td class="log-total-cell">¥${(o.total || 0).toLocaleString('ja-JP')}</td>
+                    <td>${STATUS_LABEL[o.status] || o.status}${o.isTest ? '<span class="test-badge">テスト</span>' : ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        function handleExportLog() {
+            const headerRow = ['整理番号', '時刻', '内容', '合計', '状態', '種別'].join(',');
+            const rows = lastLogOrders.map(o => [
+                formatOrderNumber(o),
+                formatDateTime(o.createdAt),
+                `"${itemsToText(o.items).replace(/"/g, '""')}"`,
+                o.total,
+                STATUS_LABEL[o.status] || o.status,
+                o.isTest ? 'テスト' : '本番'
+            ].join(','));
+
+            const csv = [headerRow, ...rows].join('\r\n');
+            const bom = '﻿'; // UTF-8 BOM（Excel での文字化け防止）
+            const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+
+            const now = new Date();
+            const filename = `注文履歴_${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}.csv`;
+
+            offerCsvDownload(filename, blob);
+        }
+
+        /* ============================================================
+           CSV ダウンロード
+           Claudeのアーティファクト表示内では downloads capability 経由、
+           それ以外では通常の <a download> によるブラウザダウンロードに
+           フォールバックする（共有データベース自体はアーティファクト内でしか動かない）。
+        ============================================================ */
+        async function offerCsvDownload(filename, blob) {
+            if (typeof window.claude !== 'undefined' && typeof window.claude.use === 'function') {
+                try {
+                    const downloads = await window.claude.use('downloads');
+                    if (downloads) {
+                        await downloads.save({ filename, data: blob });
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('CSV保存に失敗しました:', err);
+                    return;
+                }
+            }
+
+            const url = URL.createObjectURL(blob);
+            const a   = document.createElement('a');
+            a.href     = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        /* ============================================================
+           イベントリスナー設定
+        ============================================================ */
+        function setupEventListeners() {
+            // タブ切り替え
+            document.querySelector('.tab-bar').addEventListener('click', e => {
+                const btn = e.target.closest('.tab-btn');
+                if (!btn) return;
+                switchTab(btn.dataset.tab);
+            });
+
+            // 注文受付：商品ボタン
+            document.getElementById('takingProductsGrid').addEventListener('click', e => {
+                const btn = e.target.closest('.product-btn');
+                if (!btn || btn.disabled) return;
+                const id = btn.dataset.id;
+                if (!id) return;
+                takingAddToCart(id);
+            });
+
+            // 注文受付：注文内容の ± ボタン
+            document.getElementById('takingCartList').addEventListener('click', e => {
+                const btn = e.target.closest('.qty-btn');
+                if (!btn) return;
+                const id = btn.dataset.id;
+                if (btn.classList.contains('minus')) {
+                    takingRemoveFromCart(id);
+                } else if (btn.classList.contains('plus') && !btn.disabled) {
+                    takingAddToCart(id);
+                }
+            });
+
+            // 注文受付：確定・次のお客様へ
+            document.getElementById('confirmOrderBtn').addEventListener('click', handleConfirmOrder);
+            document.getElementById('nextCustomerBtn').addEventListener('click', handleNextCustomer);
+
+            // テストモードの切り替え
+            document.getElementById('testModeToggle').addEventListener('change', e => {
+                testMode = e.target.checked;
+                document.getElementById('panelTaking').classList.toggle('test-mode-active', testMode);
+                // 在庫チェックの有無が変わるため、商品ボタン・カートの有効/無効を描画し直す
+                renderTakingProducts();
+                renderTakingCart();
+            });
+
+            // 会計：一覧からの選択
+            document.getElementById('checkoutOrderList').addEventListener('click', e => {
+                const card = e.target.closest('.order-card');
+                if (!card) return;
+                const id = card.dataset.id;
+                const data = lastPendingDocsById[id];
+                if (data) openCheckoutDetail(id, data);
+            });
+
+            // 会計：一覧に戻る
+            document.getElementById('checkoutBackBtn').addEventListener('click', closeCheckoutDetail);
+
+            // 会計：現金入力
+            document.getElementById('cashInput').addEventListener('input', () => {
+                calcValue = document.getElementById('cashInput').value.replace(/[^0-9]/g, '');
+                updateCheckoutChangeDisplay();
+            });
+
+            // 会計：電卓
+            document.getElementById('calcGrid').addEventListener('click', e => {
+                const btn = e.target.closest('.calc-btn');
+                if (!btn) return;
+                handleCalcKey(btn.dataset.key);
+            });
+
+            // 会計：完了・取消
+            document.getElementById('checkoutPayBtn').addEventListener('click', handleCheckoutPay);
+            document.getElementById('checkoutCancelBtn').addEventListener('click', handleCheckoutCancelOrder);
+
+            // 受け取り：お渡し済み
+            document.getElementById('pickupOrderList').addEventListener('click', e => {
+                const btn = e.target.closest('.order-action-btn');
+                if (!btn) return;
+                handlePickupComplete(btn.dataset.id, btn.dataset.label);
+            });
+
+            // 補充：± ボタン・反映
+            document.getElementById('restockGrid').addEventListener('click', e => {
+                const btn = e.target.closest('.restock-btn');
+                if (!btn) return;
+                const id     = btn.dataset.id;
+                const action = btn.dataset.action;
+                if (action === 'plus') {
+                    restockPending[id] = (restockPending[id] || 0) + 1;
+                } else if (action === 'minus') {
+                    restockPending[id] = (restockPending[id] || 0) - 1;
+                }
+                const el = document.getElementById(`rpq-${id}`);
+                if (el) el.textContent = restockPending[id];
+            });
+            document.getElementById('applyRestockBtn').addEventListener('click', handleApplyRestock);
+
+            // 商品管理：名前・価格の編集（入力欄からフォーカスが外れた時に反映）
+            document.getElementById('productManageList').addEventListener('change', e => {
+                const row = e.target.closest('.manage-row');
+                if (!row) return;
+                const id = row.dataset.id;
+                if (e.target.classList.contains('manage-name-input')) {
+                    handleEditProductName(id, e.target.value);
+                } else if (e.target.classList.contains('manage-price-input')) {
+                    handleEditProductPrice(id, e.target.value);
+                }
+            });
+
+            // 商品管理：削除
+            document.getElementById('productManageList').addEventListener('click', e => {
+                const btn = e.target.closest('.manage-delete-btn');
+                if (!btn) return;
+                handleDeleteProduct(btn.dataset.id, btn.dataset.name);
+            });
+
+            // 商品管理：追加
+            document.getElementById('addProductBtn').addEventListener('click', handleAddProduct);
+
+            // 商品管理：フォーカスが外れたら、保留していた再描画を反映する
+            document.getElementById('productManageList').addEventListener('focusout', () => {
+                setTimeout(renderProductManageList, 0);
+            });
+
+            // 統計：リセット
+            document.getElementById('statsResetBtn').addEventListener('click', handleStatsReset);
+
+            // 統計：本番／テストモードの表示切り替え
+            document.getElementById('statsViewRealBtn').addEventListener('click', () => {
+                statsViewMode = 'real';
+                renderStatsView();
+            });
+            document.getElementById('statsViewTestBtn').addEventListener('click', () => {
+                statsViewMode = 'test';
+                renderStatsView();
+            });
+
+            // ログ：エクスポート
+            document.getElementById('exportLogBtn').addEventListener('click', handleExportLog);
+        }
+
+        /* ============================================================
+           起動
+        ============================================================ */
+        init();
+    </script>
+</body>
+
+</html>
