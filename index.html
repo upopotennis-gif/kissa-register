@@ -2222,6 +2222,52 @@
             document.getElementById('dbUnavailable').hidden = false;
         }
 
+        /**
+         * 在庫・商品を今すぐ1回だけ取り直す。
+         * onSnapshotのリアルタイム購読は基本的にずっと生きているはずだが、
+         * 画面がバックグラウンドにあった間は通信が間引かれることがあるため、
+         * 画面に戻ってきた瞬間に確実に最新化するための保険。
+         */
+        async function refreshInventoryAndProductsNow() {
+            try {
+                const invSnap = await db.doc('state/inventory').get();
+                inventory = invSnap.data() || {};
+                renderTakingProducts();
+                renderRestock();
+            } catch (err) {
+                console.warn('在庫の再取得に失敗しました', err);
+            }
+            try {
+                const productsSnap = await db.collection('products').orderBy('order', 'asc').get();
+                PRODUCTS = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderTakingProducts();
+                renderTakingCart();
+                renderRestock();
+                renderProductManageList();
+            } catch (err) {
+                console.warn('商品の再取得に失敗しました', err);
+            }
+        }
+
+        /**
+         * 画面がバックグラウンドから復帰した時の再同期。
+         * 会計の入力途中（現金入力中など）だった場合はその内容を消さないよう、
+         * 一覧の購読だけを張り直し、詳細画面には触れない。
+         */
+        function handleVisibilityRestore() {
+            refreshInventoryAndProductsNow();
+
+            if (currentTab === 'checkout' && !selectedOrder) {
+                subscribeCheckoutList();
+            } else if (currentTab === 'pickup') {
+                subscribePickupList();
+            } else if (currentTab === 'stats') {
+                loadAndRenderStats();
+            } else if (currentTab === 'log') {
+                loadAndRenderLog();
+            }
+        }
+
         /* ============================================================
            タブ切り替え
         ============================================================ */
@@ -3048,6 +3094,15 @@
                 const btn = e.target.closest('.tab-btn');
                 if (!btn) return;
                 switchTab(btn.dataset.tab);
+            });
+
+            // 画面がバックグラウンドから復帰した時に再同期する
+            // （スマホ・タブレットのブラウザは、非表示のタブでは通信を
+            //   間引くことがあり、それが「反映が遅れる」ように見える主な原因のため）
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && db) {
+                    handleVisibilityRestore();
+                }
             });
 
             // 注文受付：商品ボタン
