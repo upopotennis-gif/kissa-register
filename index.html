@@ -1719,6 +1719,7 @@
                 <button type="button" class="tab-btn" id="tabBtnCheckout" data-tab="checkout" role="tab" aria-selected="false" aria-controls="panelCheckout">会計</button>
                 <button type="button" class="tab-btn" id="tabBtnPickup" data-tab="pickup" role="tab" aria-selected="false" aria-controls="panelPickup">受け取り</button>
                 <button type="button" class="tab-btn" id="tabBtnRestock" data-tab="restock" role="tab" aria-selected="false" aria-controls="panelRestock">補充</button>
+                <button type="button" class="tab-btn" id="tabBtnManage" data-tab="manage" role="tab" aria-selected="false" aria-controls="panelManage">管理</button>
                 <button type="button" class="tab-btn" id="tabBtnStats" data-tab="stats" role="tab" aria-selected="false" aria-controls="panelStats">統計</button>
                 <button type="button" class="tab-btn" id="tabBtnLog" data-tab="log" role="tab" aria-selected="false" aria-controls="panelLog">ログ</button>
             </nav>
@@ -1849,8 +1850,18 @@
                 </section>
             </div>
 
-            <!-- 4. 商品管理・在庫補充 -->
+            <!-- 4. 在庫補充 -->
             <div class="tab-panel" id="panelRestock" data-tab-panel="restock" role="tabpanel" aria-labelledby="tabBtnRestock" hidden>
+                <section class="card restock-card" aria-label="在庫補充">
+                    <div class="card-title">在庫補充</div>
+                    <p class="restock-desc">破損・数え間違いの補正にはマイナスも使えます（在庫は0未満になりません）。ここでの変更は全タブレットに反映されます。</p>
+                    <div class="restock-grid" id="restockGrid"></div>
+                    <button class="apply-btn" id="applyRestockBtn">補充を反映</button>
+                </section>
+            </div>
+
+            <!-- 4.5 商品管理（名称・価格の設定。誤操作を避けるため補充とは別画面） -->
+            <div class="tab-panel" id="panelManage" data-tab-panel="manage" role="tabpanel" aria-labelledby="tabBtnManage" hidden>
                 <section class="card" aria-label="商品管理">
                     <div class="card-title">商品管理</div>
                     <p class="tab-hint">商品名・価格の変更や、商品の追加・削除ができます。変更は全タブレットに反映されますが、過去の注文履歴・統計はそのままの内容で残ります。</p>
@@ -1863,13 +1874,6 @@
                         </div>
                         <button type="button" class="manage-add-btn" id="addProductBtn">＋ 追加</button>
                     </div>
-                </section>
-
-                <section class="card restock-card" aria-label="在庫補充">
-                    <div class="card-title">在庫補充</div>
-                    <p class="restock-desc">破損・数え間違いの補正にはマイナスも使えます（在庫は0未満になりません）。ここでの変更は全タブレットに反映されます。</p>
-                    <div class="restock-grid" id="restockGrid"></div>
-                    <button class="apply-btn" id="applyRestockBtn">補充を反映</button>
                 </section>
             </div>
 
@@ -1956,7 +1960,7 @@
         import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
         import {
             getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot,
-            collection, addDoc, query, where, orderBy, limit, getDocs
+            collection, addDoc, query, where, orderBy, limit, getDocs, runTransaction
         } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
         const firebaseConfig = {
@@ -2158,6 +2162,58 @@
             bootDb();
         }
 
+        /**
+         * 初回起動時だけ、初期メニューを投入する。
+         *
+         * 以前は「products が空なら投入する」という判定だけだったため、
+         * 複数のタブレットがほぼ同時に開いた瞬間、全員が同時に「まだ空だ」と
+         * 判断してしまい、初期メニューが端末の台数ぶん重複登録される不具合があった
+         * （文化祭2日目終了時点で商品が31件に増殖していたのはこれが原因）。
+         * state/seeded という1つのドキュメントへの書き込みを Firestore の
+         * トランザクションで奪い合わせることで、実際に投入するのは
+         * 最初に到達した1台だけになるようにする。
+         */
+        async function ensureProductsSeeded() {
+            const seedRef = doc(firestore, 'state', 'seeded');
+            let shouldSeed = false;
+            try {
+                await runTransaction(firestore, async (tx) => {
+                    const seedSnap = await tx.get(seedRef);
+                    if (seedSnap.exists()) {
+                        shouldSeed = false;
+                        return;
+                    }
+                    tx.set(seedRef, { done: true, at: Date.now() });
+                    shouldSeed = true;
+                });
+            } catch (err) {
+                console.warn('初期化フラグの確認に失敗しました', err);
+                return;
+            }
+            if (!shouldSeed) return;
+
+            // フラグ自体は「今この端末が投入担当」を意味するだけなので、
+            // 念のため実際に商品が0件の時だけ投入する
+            // （フラグ導入前からの既存データがある環境での二重投入を防ぐ保険）
+            try {
+                const existing = await db.collection('products').get();
+                if (!existing.empty) return;
+            } catch (err) {
+                console.warn('商品件数の確認に失敗しました', err);
+                return;
+            }
+
+            try {
+                let order = 1;
+                for (const dp of DEFAULT_PRODUCTS) {
+                    const ref = await db.collection('products').add({ name: dp.name, price: dp.price, order: order++ });
+                    await db.doc('state/inventory').update({ [ref.id]: 0 });
+                }
+            } catch (err) {
+                console.error('初期メニューの投入に失敗しました', err);
+            }
+        }
+
         async function bootDb() {
             try {
                 await signInAnonymously(firebaseAuth);
@@ -2189,18 +2245,7 @@
                 console.warn('在庫の購読でエラーが発生しました', err);
             });
 
-            try {
-                const productsSnap = await db.collection('products').get();
-                if (productsSnap.empty) {
-                    // 初回起動時だけ、初期メニューを投入する
-                    let order = 1;
-                    for (const dp of DEFAULT_PRODUCTS) {
-                        await db.collection('products').add({ name: dp.name, price: dp.price, order: order++ });
-                    }
-                }
-            } catch (err) {
-                console.warn('商品の初期化に失敗しました', err);
-            }
+            await ensureProductsSeeded();
 
             unsubProducts = db.collection('products')
                 .orderBy('order', 'asc')
@@ -2313,7 +2358,7 @@
             grid.innerHTML = '';
 
             if (PRODUCTS.length === 0) {
-                grid.innerHTML = '<div class="manage-empty">商品がまだ登録されていません（「補充」タブの商品管理から追加してください）</div>';
+                grid.innerHTML = '<div class="manage-empty">商品がまだ登録されていません（「管理」タブから追加してください）</div>';
                 return;
             }
 
